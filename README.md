@@ -12,7 +12,7 @@
   + about 5000 tokens
 
 ## Training
-+ have pretrained on
++ Have been pretrained on
   + ijcnlp dailydialog
   + CMU_DoG
   + blended skill talk
@@ -21,4 +21,5 @@
   + empathetic dialogues
   + for one epoch
   + will be pretrained for one more epoch
-+ will be fine-tuned soon
++ Have been fine-tuned for 2 epochs
+
