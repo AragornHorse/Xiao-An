@@ -224,16 +224,46 @@ def eou_to_usr(pth1, pth2):
 #     pth2=r"C:\Users\DELL\Desktop\datasets\supper_replier\blended_skill_talk\format.txt"
 # )
 
-txt = """"""
+def arxiv_to_txt():
+    txt = """"""
 
-with open(r"D:\txt_datasets\archive (3)\arxiv-metadata-oai-snapshot.json", 'r', encoding='utf-8') as f:
-    for i, line in enumerate(f):
-        d = json.loads(line)
-        abstract = d['abstract'].replace("\n", '')
-        title = d['title'].replace("\n", "").replace("  ", " ")
-        txt += f'[chat] [user] "{title}". [agent] {abstract} \n'
-        if i % 50000 == 0:
-            print(f"{i} / {2400000}")
+    with open(r"D:\txt_datasets\archive (3)\arxiv-metadata-oai-snapshot.json", 'r', encoding='utf-8') as f:
+        for i, line in enumerate(f):
+            d = json.loads(line)
+            abstract = d['abstract'].replace("\n", ' ')
+            title = d['title'].replace("\n", " ").replace("  ", " ")
+            txt += f'[chat] [user] "{title}". [agent] {abstract} \n'
+            # print('|', d['categories'])
+            if (i + 1) % 200 == 0:
+                with open(r"D:\txt_datasets\archive (3)\txts\format{}.txt".format(i // 200), 'w', encoding='utf-8') as f:
+                    f.write(txt)
+                txt = """"""
+            if i % 50000 == 0:
+                print(f"{i} / {2400000}")
 
-with open(r"D:\txt_datasets\archive (3)\format.txt", 'r', encoding='utf-8') as f:
-    f.write(txt)
+    with open(r"D:\txt_datasets\archive (3)\txts\format.txt", 'w', encoding='utf-8') as f:
+        f.write(txt)
+
+
+def arxiv_txt_to_tokens():
+    from glob import glob
+    import pickle as pkl
+    import tokenizer
+
+    lst = glob(r"D:\txt_datasets\archive (3)\txts\*.txt")
+    tokenizer = tokenizer.Tokenizer()
+
+    for pth in lst:
+        name = pth.split('\\')[-1].split('.')[0]
+        txt = """"""
+        with open(pth, 'r', encoding='utf-8') as f:
+            for line in f:
+                txt += line
+        txt = tokenizer.encode(txt)
+        with open(r"D:\txt_datasets\archive (3)\tokens\{}.pkl".format(name), 'wb') as f:
+            pkl.dump(txt, f)
+        print(name)
+
+
+# arxiv_to_txt()
+# arxiv_txt_to_tokens()

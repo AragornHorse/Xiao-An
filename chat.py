@@ -21,20 +21,20 @@ gpt = transformer.GPT(config).to(device)
 
 gpt.eval()
 
-gpt.load_state_dict(torch.load(r"./gpt_param/tst7.pth"))
+gpt.load_state_dict(torch.load(r"./gpt_param/tst8.pth"))
 
 history = ""
 
 while True:
     ids = input(">>>")
     if len(history) == 0:
-        resp = gpt.chat(f"\n[chat] [user] {ids} [agent]", tokenizer, end_sym="[user]", max_new_tokens=50)
+        resp = gpt.chat(f"\n[chat] [user] {ids} [agent]", tokenizer, end_sym="[user]", max_new_tokens=50, beam_num=None)
         history += f"\n[chat] [user] {ids} [agent]" + resp
     else:
-        resp = gpt.chat(f"{history} [user] {ids} [agent]", tokenizer, end_sym="[user]")
+        resp = gpt.chat(f"{history} [user] {ids} [agent]", tokenizer, end_sym="[user]", beam_num=None)
         history += f"[user] {ids} [agent]" + resp
-    if len(history) > 384:
-        history = history[-384:]
+    # if len(history) > 384:
+    #     history = history[-384:]
 
     if '\n' in resp:
         print(resp.split('\n')[0])

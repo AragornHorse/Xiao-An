@@ -103,7 +103,7 @@ class GPT(nn.Module):
         elif isinstance(module, nn.Embedding):
             torch.nn.init.normal_(module.weight, mean=0.0, std=0.02)
 
-    def forward(self, idx, targets=None):
+    def forward(self, idx, targets=None, tgt_idx=None):
         device = idx.device
         _, T = idx.size()
 
@@ -118,7 +118,18 @@ class GPT(nn.Module):
 
         if targets is not None:
             logits = self.lm_head(x)
-            loss = torch.nn.CrossEntropyLoss()(logits.view(-1, logits.size(-1)), targets.view(-1))
+            if tgt_idx is None:
+                loss = torch.nn.CrossEntropyLoss()(logits.view(-1, logits.size(-1)), targets.view(-1))
+            else:
+                b_idx = []
+                t_idx = []
+                # print(b_idx, t_idx)
+                for b, i in enumerate(tgt_idx):
+                    t_idx += i
+                    b_idx += [b] * len(i)
+                loss = torch.nn.CrossEntropyLoss()(logits[b_idx, t_idx, :], targets[b_idx, t_idx])
+                # print(b_idx, t_idx)
+
         else:
             logits = self.lm_head(x[:, [-1], :])
             loss = None
@@ -146,7 +157,7 @@ class GPT(nn.Module):
         return idx
 
     @torch.no_grad()
-    def chat(self, idx, tokenizer, temperature=1.0, max_new_tokens=300, top_k=None, end_sym="[user]"):
+    def chat(self, idx, tokenizer, temperature=1.0, max_new_tokens=300, top_k=None, end_sym="[user]", beam_num=None):
 
         if isinstance(idx, str):
             idx = torch.tensor(tokenizer.encode(idx), dtype=torch.long, device=self.config.device)[None, :]
@@ -159,19 +170,61 @@ class GPT(nn.Module):
             if len(idx.shape) == 1:
                 idx = idx[None, :]
 
-        for _ in range(max_new_tokens):
-            idx_cond = (idx if idx.size(1) <= self.config.block_size else idx[:, -self.config.block_size:])
-            logits, _ = self(idx_cond)
-            logits = logits[:, -1, :] / temperature
-            if top_k is not None:
-                v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
-                logits[logits < v[:, [-1]]] = -float("Inf")
-            probs = torch.softmax(logits, dim=-1)
-            idx_next = torch.multinomial(probs, num_samples=1)
-            idx = torch.cat((idx, idx_next), dim=1)
-            if idx.shape[-1] > len(end) and idx.squeeze().cpu().numpy().tolist()[-len(end):] == end:
-                break
+        if beam_num is None:
+            for _ in range(max_new_tokens):
+                idx_cond = (idx if idx.size(1) <= self.config.block_size else idx[:, -self.config.block_size:])
+                logits, _ = self(idx_cond)
+                logits = logits[:, -1, :] / temperature
+                if top_k is not None:
+                    v, _ = torch.topk(logits, min(top_k, logits.size(-1)))
+                    logits[logits < v[:, [-1]]] = -float("Inf")
+                probs = torch.softmax(logits, dim=-1)
+                idx_next = torch.multinomial(probs, num_samples=1)
+                idx = torch.cat((idx, idx_next), dim=1)
+                if idx.shape[-1] > len(end) and idx.squeeze().cpu().numpy().tolist()[-len(end):] == end:
+                    break
 
+        else:    # beam search
+            scores = [0]
+            is_finished = [False]
+            idxs = [idx]
+            for _ in range(max_new_tokens):
+                if False not in is_finished:
+                    break
+                scores_ = []
+                is_finished_ = []
+                idxs_ = []
+                for i_, idx in enumerate(idxs):
+                    idx = (idx if idx.size(1) <= self.config.block_size else idx[:, -self.config.block_size:])
+                    if is_finished[i_]:
+                        scores_.append(scores[i_])
+                        is_finished_.append(True)
+                        idxs_.append(idx)
+                    else:
+                        logits, _ = self(idx)
+                        logits = logits[:, -1, :] / temperature
+                        probs = torch.softmax(logits, dim=-1)   # 1, v
+                        _, ids = torch.topk(probs, beam_num)
+                        for new_token in ids.squeeze():
+                            idxs_.append(
+                                torch.cat(
+                                    (idx, torch.tensor([[new_token]], dtype=torch.long, device=idx.device)),
+                                    dim=1
+                                )
+                            )
+                            is_finished_.append(
+                                (new_token == tokenizer.encode('\n')) or
+                                (
+                                        (idxs_[-1].shape[-1] > len(end)) and
+                                        (idxs_[-1].squeeze().cpu().numpy().tolist()[-len(end):] == end)
+                                )
+                            )
+                            scores_.append(scores[i_] + torch.log(probs[0, new_token]))
+                _, to_stay = torch.topk(torch.tensor(scores_), beam_num)
+                scores = [scores_[i] for i in to_stay.squeeze()]
+                idxs = [idxs_[i] for i in to_stay.squeeze()]
+                is_finished = [is_finished_[i] for i in to_stay.squeeze()]
+            idx = idxs[torch.argmax(torch.tensor(scores))]
         idx = idx.squeeze().cpu().numpy().tolist()
         return tokenizer.decode(idx[start:-len(end)])
 

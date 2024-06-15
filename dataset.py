@@ -4,6 +4,7 @@ from torch.utils.data import DataLoader, Dataset
 from glob import glob
 import json
 import random
+import pickle as pkl
 
 
 class IJCNLPDailyDialog(Dataset):
@@ -165,22 +166,46 @@ class ArxivAbstract(Dataset):
         return all
 
 
+class ArxivTokenDataset(Dataset):
+    def __init__(self, tokens_pth=r"D:\txt_datasets\archive (3)\tokens", tokenizer=Tokenizer.Tokenizer(),
+                 max_len=512, device=torch.device("cpu")):
+        self.lst = glob(tokens_pth + r"\*.pkl")
+        self.max_len = max_len
+        self.device = device
+        self.tokenizer = tokenizer
+
+    def __len__(self):
+        return len(self.lst)
+
+    def __getitem__(self, item):
+        pth = self.lst[item]
+        with open(pth, 'rb') as f:
+            tokens = pkl.load(f)
+        frm = random.randint(0, len(tokens) - self.max_len - 1)
+        x = tokens[frm: frm + self.max_len]
+        y = tokens[frm + 1: frm + 1 + self.max_len]
+        x = torch.tensor(x, dtype=torch.long, device=self.device)
+        y = torch.tensor(y, dtype=torch.long, device=self.device)
+        return [x, y]
+
+
 if __name__ == '__main__':
 
-    for d in RandomMultiDataset([{
-            'dataset': IJCNLPDailyDialog(),
-            'rate': 1
-        }, {
-            'dataset': CMUDoG(),
-            'rate': 0.1
-        }
-    ]):
-        print(d)
-        pass
-    # da = ArxivAbstract()
-    # # print(da[len(da) - 2])
-    # for i, d in enumerate(da):
-    #     print(f"{i} / {len(da)}")
-    #     x, y = d
-    #     print(da.tokenizer.decode(x))
-    #     input()
+    # for d in RandomMultiDataset([{
+    #         'dataset': IJCNLPDailyDialog(),
+    #         'rate': 1
+    #     }, {
+    #         'dataset': CMUDoG(),
+    #         'rate': 0.1
+    #     }
+    # ]):
+    #     print(d)
+
+    da = ArxivTokenDataset()
+    # print(da[len(da) - 2])
+    for i, d in enumerate(da):
+        print(f"{i} / {len(da)}")
+        x, y = d
+        print(da.tokenizer.decode(x))
+        print(da.tokenizer.decode(y))
+        input()
