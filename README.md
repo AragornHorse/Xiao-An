@@ -18,7 +18,7 @@
 
 ### Training
 + 0.0 is a chat version
- ![9055fe25f75dbfb94c32cd272fb0122](https://github.com/AragornHorse/Xiao-An/assets/94287335/78d94196-52d8-482d-9a92-33479efdea5b)
++  ![9055fe25f75dbfb94c32cd272fb0122](https://github.com/AragornHorse/Xiao-An/assets/94287335/78d94196-52d8-482d-9a92-33479efdea5b)
   + Have been pretrained on
     + ijcnlp dailydialog
     + CMU_DoG
@@ -40,6 +40,8 @@
   + become larger
   + more datasets, including c4, books, arxiv will be used for pretraining
   + will be sft for several uses, including chit-chat, writing, etc.
+  + will include pyhorse's resources as a part of dataset, to make Xiao An act like pyhorse
+  
   + may include DPO for RLHF
 + Future
   + version 2
