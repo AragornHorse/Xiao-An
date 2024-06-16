@@ -50,4 +50,5 @@
   + version 3
     + will try generative reward model
     + more details in sft, including cot, icl
+    + will adapt knologe embedding as Xiao An's memory, that'll make him live like a human
 
